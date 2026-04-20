@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Jampp · EMEA Portfolio Health Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  body{background:#0a0f1e;color:#e4e8f0;padding:24px;min-height:100vh}
+  .header{background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:20px 28px;border-radius:16px;margin-bottom:24px;box-shadow:0 10px 40px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
+  .header-left{display:flex;align-items:center;gap:16px}
+  .logo-box{background:white;padding:10px 18px;border-radius:12px;display:flex;align-items:center;gap:10px}
+  .logo-icon{width:28px;height:28px;background:#e8ebfe;border-radius:7px;position:relative}
+  .logo-icon::after{content:"";position:absolute;top:-3px;right:-3px;width:12px;height:12px;background:#3646f5;border-radius:50%}
+  .logo-text{font-size:22px;font-weight:700;color:#0a0f1e;letter-spacing:-.5px}
+  .logo-sub{font-size:10px;color:#64748b;font-weight:500;margin-top:-2px}
+  .logo-sub i{color:#f59e0b;font-style:normal}
+  h1{font-size:22px;margin-bottom:2px;color:white}
+  .subtitle{opacity:.7;font-size:13px}
+  .tabs{display:flex;gap:8px;margin-bottom:24px;background:#111827;padding:6px;border-radius:12px;width:fit-content}
+  .tab{padding:11px 22px;border-radius:8px;cursor:pointer;transition:all .2s;font-weight:500;border:none;background:transparent;color:#94a3b8;font-size:14px}
+  .tab.active{background:#3b82f6;color:white;box-shadow:0 4px 12px rgba(59,130,246,.4)}
+  .tab:hover:not(.active){background:#1e293b;color:#e4e8f0}
+  .view{display:none}.view.active{display:block;animation:fadeIn .3s}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+  .kpi-card{background:#111827;padding:20px;border-radius:12px;border-left:4px solid #3b82f6;transition:transform .2s}
+  .kpi-card:hover{transform:translateY(-4px)}
+  .kpi-card.danger{border-color:#ef4444}
+  .kpi-card.warning{border-color:#f59e0b}
+  .kpi-card.success{border-color:#22c55e}
+  .kpi-label{font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:.8px;margin-bottom:10px;font-weight:600}
+  .kpi-value{font-size:26px;font-weight:700;color:#fff;line-height:1.1}
+  .kpi-value.red{color:#ef4444}
+  .kpi-value.orange{color:#f97316}
+  .kpi-sub{font-size:12px;color:#64748b;margin-top:6px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  @media(max-width:900px){.grid-2{grid-template-columns:1fr}}
+  .card{background:#111827;padding:22px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .card h3{font-size:13px;margin-bottom:18px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+  select{background:#0a0f1e;color:#e4e8f0;border:1px solid #334155;padding:10px 14px;border-radius:8px;font-size:14px;cursor:pointer;min-width:220px}
+  select:focus{outline:none;border-color:#3b82f6}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{padding:12px 10px;text-align:left;color:#94a3b8;font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.8px;border-bottom:1px solid #1e293b}
+  td{padding:14px 10px;border-bottom:1px solid #1e293b}
+  .badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;display:inline-block}
+  .badge-healthy{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+  .badge-watch{background:rgba(234,179,8,.15);color:#fde047;border:1px solid rgba(234,179,8,.3)}
+  .badge-risk{background:rgba(249,115,22,.15);color:#fdba74;border:1px solid rgba(249,115,22,.3)}
+  .badge-critical{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+  .badge-ramp{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px solid rgba(148,163,184,.3)}
+  .badge-opp{background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.4);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500}
+  .filters{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+  .chart-container{position:relative;height:320px}
+  .chart-container.tall{height:380px}
+  .alert{background:rgba(239,68,68,.08);border-left:3px solid #ef4444;padding:10px 14px;margin:8px 0;border-radius:6px;font-size:13px}
+  .insight{background:rgba(34,197,94,.08);border-left:3px solid #22c55e;padding:10px 14px;margin:8px 0;border-radius:6px;font-size:13px}
+  .score-bar{display:flex;align-items:center;gap:10px}
+  .bar{width:100px;height:8px;background:#1e293b;border-radius:4px;overflow:hidden}
+  .bar-fill{height:100%;transition:width .3s}
+  .account-row{cursor:pointer;transition:background .15s}
+  .account-row:hover{background:#0f1729}
+  .detail-row{background:#0a0f1e}
+  .detail-card{padding:18px 20px;background:#0f172a;border-radius:8px;margin:6px 0 10px 0;border:1px solid #1e293b}
+  .detail-card h4{color:#e4e8f0;font-size:14px;margin-bottom:14px}
+  .detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:14px}
+  .detail-item{font-size:13px}
+  .detail-item .label{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .detail-item .value{color:#e4e8f0;font-size:15px;font-weight:600}
+  .detail-item .value.green{color:#4ade80}
+  .detail-item .value.red{color:#fca5a5}
+  .detail-note{color:#94a3b8;font-size:13px;margin-bottom:10px;line-height:1.5}
+  .chevron{display:inline-block;margin-right:8px;transition:transform .2s;color:#64748b;font-size:10px}
+  .account-row.open .chevron{transform:rotate(90deg);color:#3b82f6}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo-box">
+      <div class="logo-icon"></div>
+      <div>
+        <div class="logo-text">Jampp</div>
+        <div class="logo-sub">an <i>affle</i> company</div>
+      </div>
+    </div>
+    <div>
+      <h1>EMEA Portfolio Health Dashboard</h1>
+      <div class="subtitle">Q1 2026 · Health Framework Score</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchView(event,'leadership')">📊 Leadership</button>
+  <button class="tab" onclick="switchView(event,'csm')">👥 CSM View</button>
+  <button class="tab" onclick="switchView(event,'account')">🔍 Account Deep-Dive</button>
+</div>
+
+<div id="leadership" class="view active">
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="grid-2">
+    <div class="card"><h3>🍩 Portfolio Health Distribution</h3><div class="chart-container"><canvas id="donutChart"></canvas></div></div>
+    <div class="card"><h3>💰 Spend by Vertical</h3><div class="chart-container"><canvas id="verticalChart"></canvas></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><h3>🚨 Top 5 At-Risk Accounts</h3><div id="atRiskTable"></div></div>
+    <div class="card"><h3>🏆 Top 5 Performers</h3><div id="topPerfTable"></div></div>
+  </div>
+  <div class="card"><h3>📈 Weekly Spend Trend (March 2026)</h3><div class="chart-container"><canvas id="weeklyTrend"></canvas></div></div>
+</div>
+
+<div id="csm" class="view">
+  <div class="filters">
+    <label>CSM: <select id="csmFilter" onchange="renderCSM()"><option value="CSM A">CSM A</option><option value="CSM B">CSM B</option></select></label>
+  </div>
+  <div class="kpi-grid" id="csmKpis"></div>
+  <div class="grid-2">
+    <div class="card"><h3>🎯 Portfolio Health Breakdown</h3><div class="chart-container"><canvas id="healthBreakdownChart"></canvas></div></div>
+    <div class="card"><h3>📦 Budget Distribution by Tier</h3><div class="chart-container"><canvas id="tierChart"></canvas></div></div>
+  </div>
+  <div class="card"><h3>💹 CPX Actual vs Target (per Account)</h3><div class="chart-container"><canvas id="cpxChart"></canvas></div></div>
+  <div class="card" style="margin-top:20px"><h3>📋 Account List — Click to Expand</h3><div id="csmTable"></div></div>
+</div>
+
+<div id="account" class="view">
+  <div class="filters">
+    <label>Advertiser: <select id="accountFilter" onchange="renderAccount()"></select></label>
+  </div>
+  <div id="accountContent"></div>
+</div>
+
+<script>
+Chart.register(ChartDataLabels);
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.plugins.datalabels.display = false;
+
+const accounts = [
+  {id:"C",name:"Advertiser C",vertical:"E-commerce",tier:"Tier 1",csm:"CSM B",campaigns:"UA+RT",creatives:"Video,Banners",attribution:"CTA,VTA",jan:91000,feb:88000,mar:90000,cpxT:12,cpxA:12.20,nps:8,annual:1080000,totalSpend:268998.90,pacing:0.9963},
+  {id:"A",name:"Advertiser A",vertical:"Gaming",tier:"Tier 1",csm:"CSM A",campaigns:"UA+RT+CTV",creatives:"Video,Banners",attribution:"CTA,VTA",jan:85000,feb:82000,mar:78000,cpxT:18,cpxA:18.50,nps:6,annual:1020000,totalSpend:244991.76,pacing:0.9608},
+  {id:"B",name:"Advertiser B",vertical:"Fintech",tier:"Tier 1",csm:"CSM A",campaigns:"UA",creatives:"Video",attribution:"CTA",jan:62000,feb:63000,mar:65000,cpxT:22,cpxA:17.20,nps:9,annual:780000,totalSpend:190004.84,pacing:0.9744},
+  {id:"E",name:"Advertiser E",vertical:"Food Delivery",tier:"Tier 2",csm:"CSM A",campaigns:"UA+RT",creatives:"Interstitial,Banners",attribution:"CTA,VTA",jan:35000,feb:36000,mar:37500,cpxT:15,cpxA:14.60,nps:8,annual:450000,totalSpend:108507.14,pacing:0.9645},
+  {id:"H",name:"Advertiser H",vertical:"Gaming",tier:"Tier 2",csm:"CSM B",campaigns:"UA+RT",creatives:"Interstitial,Banners",attribution:"VTA",jan:31000,feb:30000,mar:29000,cpxT:14,cpxA:16.20,nps:7,annual:372000,totalSpend:89993.55,pacing:0.9677},
+  {id:"D",name:"Advertiser D",vertical:"Gaming",tier:"Tier 2",csm:"CSM A",campaigns:"RT",creatives:"Banners",attribution:"VTA",jan:28000,feb:22000,mar:17000,cpxT:8,cpxA:11.50,nps:5,annual:336000,totalSpend:66960.71,pacing:0.7972},
+  {id:"I",name:"Advertiser I",vertical:"Fintech",tier:"Tier 2",csm:"CSM A",campaigns:"UA",creatives:"Banners",attribution:"VTA",jan:24000,feb:22500,mar:21000,cpxT:30,cpxA:29.00,nps:6,annual:288000,totalSpend:67487.50,pacing:0.9373},
+  {id:"F",name:"Advertiser F",vertical:"Travel",tier:"Tier 2",csm:"CSM B",campaigns:"UA+CTV",creatives:"Banners,Video",attribution:"VTA,CTA",jan:22000,feb:18000,mar:14000,cpxT:25,cpxA:35.80,nps:4,annual:264000,totalSpend:53963.64,pacing:0.8176},
+  {id:"G",name:"Advertiser G",vertical:"E-commerce",tier:"Tier 2",csm:"CSM A",campaigns:"RT+CTV",creatives:"Banners,Video",attribution:"VTA,CTA",jan:18000,feb:18800,mar:19200,cpxT:9,cpxA:8.50,nps:8,annual:228000,totalSpend:56006.67,pacing:0.9826},
+  {id:"L",name:"Advertiser L",vertical:"Gaming",tier:"Tier 3",csm:"CSM A",campaigns:"UA+RT",creatives:"Interstitial,Banners",attribution:"CTA,VTA",jan:15000,feb:14200,mar:13500,cpxT:11,cpxA:11.00,nps:7,annual:180000,totalSpend:42690.00,pacing:0.9487},
+  {id:"P",name:"Advertiser P",vertical:"Gaming",tier:"Tier 2",csm:"CSM A",campaigns:"UA",creatives:"Banners",attribution:"VTA",jan:0,feb:3000,mar:8000,cpxT:10,cpxA:12.20,nps:null,annual:168000,totalSpend:11000,pacing:0.2619},
+  {id:"J",name:"Advertiser J",vertical:"E-commerce",tier:"Tier 3",csm:"CSM A",campaigns:"RT",creatives:"Banners",attribution:"VTA",jan:12000,feb:11500,mar:11000,cpxT:7,cpxA:7.20,nps:7,annual:144000,totalSpend:34491.67,pacing:0.9581},
+  {id:"N",name:"Advertiser N",vertical:"Fintech",tier:"Tier 3",csm:"CSM A",campaigns:"UA",creatives:"Video",attribution:"CTA",jan:0,feb:2000,mar:5500,cpxT:20,cpxA:22.00,nps:null,annual:120000,totalSpend:7500,pacing:0.2500},
+  {id:"K",name:"Advertiser K",vertical:"Food Delivery",tier:"Tier 3",csm:"CSM B",campaigns:"UA",creatives:"Interstitial",attribution:"VTA",jan:9500,feb:9000,mar:8200,cpxT:18,cpxA:22.50,nps:5,annual:114000,totalSpend:26686.32,pacing:0.9364},
+  {id:"M",name:"Advertiser M",vertical:"Travel",tier:"Tier 3",csm:"CSM B",campaigns:"CTV",creatives:"Video",attribution:"CTA",jan:8000,feb:7500,mar:7000,cpxT:28,cpxA:28.50,nps:6,annual:96000,totalSpend:22487.50,pacing:0.9370},
+  {id:"O",name:"Advertiser O",vertical:"E-commerce",tier:"Tier 3",csm:"CSM B",campaigns:"UA+CTV",creatives:"Interstitial,Video",attribution:"CTA",jan:0,feb:1500,mar:4000,cpxT:14,cpxA:16.50,nps:null,annual:96000,totalSpend:5500,pacing:0.2292}
+];
+
+const weekly = {W1:114300, W2:113120, W3:106600, W4:107620};
+
+function calcHealth(acc){
+  const cpxVar = (acc.cpxA - acc.cpxT)/acc.cpxT * 100;
+  let cpxScore;
+  if(cpxVar <= 0) cpxScore = 100;
+  else if(cpxVar <= 10) cpxScore = 100 - (cpxVar*2);
+  else if(cpxVar <= 25) cpxScore = 80 - ((cpxVar-10)*2);
+  else if(cpxVar <= 50) cpxScore = 50 - ((cpxVar-25)*2);
+  else cpxScore = 0;
+
+  let pacingScore;
+  if(acc.pacing < 0.3) pacingScore = 50;
+  else if(acc.pacing >= 0.95 && acc.pacing <= 1.05) pacingScore = 100;
+  else if(acc.pacing >= 0.90 && acc.pacing < 0.95) pacingScore = 80;
+  else if(acc.pacing >= 0.85) pacingScore = 60;
+  else if(acc.pacing >= 0.80) pacingScore = 40;
+  else pacingScore = 20;
+
+  let npsScore;
+  if(acc.nps === null) npsScore = 50;
+  else if(acc.nps >= 9) npsScore = 100;
+  else if(acc.nps === 8) npsScore = 85;
+  else if(acc.nps === 7) npsScore = 65;
+  else if(acc.nps === 6) npsScore = 45;
+  else if(acc.nps === 5) npsScore = 30;
+  else npsScore = 10;
+
+  let products = 0;
+  if(acc.campaigns.includes("UA")) products++;
+  if(acc.campaigns.includes("RT")) products++;
+  if(acc.campaigns.includes("CTV")) products++;
+  const isVtaOnly = acc.attribution === "VTA";
+  let adoptBase = products >= 3 ? 100 : products === 2 ? 70 : products === 1 ? 40 : 0;
+  const adoptionScore = Math.max(0, adoptBase + (isVtaOnly ? -25 : 0));
+
+  let spendScore, spendTrend = null;
+  if(acc.jan === 0){ 
+    spendScore = 60;
+  } else {
+    spendTrend = (acc.mar - acc.jan)/acc.jan;
+    if(spendTrend >= 0.05) spendScore = 100;
+    else if(spendTrend >= -0.03) spendScore = 80;
+    else if(spendTrend >= -0.08) spendScore = 55;
+    else if(spendTrend >= -0.15) spendScore = 30;
+    else spendScore = 10;
+  }
+
+  let total = cpxScore*0.35 + pacingScore*0.25 + npsScore*0.20 + adoptionScore*0.12 + spendScore*0.08;
+
+  const guardrails = [];
+  if(acc.nps !== null && acc.nps <= 6){ total = Math.min(total, 74); guardrails.push("NPS ≤6"); }
+  if(spendTrend !== null && spendTrend <= -0.10){ total = Math.min(total, 74); guardrails.push("Spend decline ≥10%"); }
+  if(isVtaOnly){ total = Math.min(total, 74); guardrails.push("VTA-only attribution"); }
+  if(cpxVar >= 25){ total = Math.min(total, 54); guardrails.push("CPX >25% over target"); }
+  if(acc.nps !== null && acc.nps <= 4){ total = Math.min(total, 54); guardrails.push("NPS critical ≤4"); }
+
+  total = Math.round(total);
+
+  let status;
+  if(acc.pacing < 0.3) status = "Ramp";
+  else if(total >= 75) status = "Healthy";
+  else if(total >= 55) status = "Watch";
+  else if(total >= 35) status = "At Risk";
+  else status = "Critical";
+
+  return {cpxScore:Math.round(cpxScore),pacingScore:Math.round(pacingScore),npsScore:Math.round(npsScore),adoptionScore:Math.round(adoptionScore),spendScore:Math.round(spendScore),total,status,cpxVar,spendTrend,guardrails,isVtaOnly};
+}
+accounts.forEach(a => a.health = calcHealth(a));
+
+const fmt = n => "$" + Math.round(n).toLocaleString('en-US');
+const fmtK = n => n >= 1000000 ? "$"+(n/1000000).toFixed(2)+"M" : "$"+Math.round(n/1000)+"K";
+const fmtPct = n => (n*100).toFixed(1)+"%";
+const badgeClass = s => ({Healthy:"badge-healthy",Watch:"badge-watch","At Risk":"badge-risk",Critical:"badge-critical",Ramp:"badge-ramp"})[s];
+const statusColor = s => ({Healthy:"#22c55e",Watch:"#eab308","At Risk":"#f97316",Critical:"#ef4444",Ramp:"#64748b"})[s];
+const healthColor = t => t>=75?'#22c55e':t>=55?'#eab308':t>=35?'#f97316':'#ef4444';
+
+function switchView(e,v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.getElementById(v).classList.add('active');
+  e.target.classList.add('active');
+  if(v==='csm') renderCSM();
+  if(v==='account') renderAccount();
+}
+
+let donutInst, vertInst, weeklyInst;
+function renderLeadership(){
+  const totalSpend = accounts.reduce((s,a)=>s+a.totalSpend,0);
+  const totalAnnual = accounts.reduce((s,a)=>s+a.annual,0);
+  const atRiskAccounts = accounts.filter(a=>['At Risk','Critical'].includes(a.health.status));
+  const revenueAtRisk = atRiskAccounts.reduce((s,a)=>s+a.annual,0);
+  const activeAccounts = accounts.filter(a=>a.health.status!=='Ramp');
+  const cpxOverruns = accounts.filter(a=>a.health.cpxVar > 0 && a.health.status !== 'Ramp');
+  const cpxOverrunsPct = (cpxOverruns.length/activeAccounts.length*100).toFixed(0);
+  const npsAcc = accounts.filter(a=>a.nps!==null);
+  const avgNps = npsAcc.reduce((s,a)=>s+a.nps,0)/npsAcc.length;
+  const avgHealth = Math.round(accounts.reduce((s,a)=>s+a.health.total,0)/accounts.length);
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card success"><div class="kpi-label">💰 Total Spend Q1</div><div class="kpi-value">${fmtK(totalSpend)}</div><div class="kpi-sub">${fmtPct(totalSpend/totalAnnual)} of annual</div></div>
+    <div class="kpi-card"><div class="kpi-label">📅 Est. Annual Investment</div><div class="kpi-value">${fmtK(totalAnnual)}</div><div class="kpi-sub">${accounts.length} accounts</div></div>
+    <div class="kpi-card danger"><div class="kpi-label">⚠️ Revenue at Risk</div><div class="kpi-value red">${fmtK(revenueAtRisk)}</div><div class="kpi-sub">${atRiskAccounts.length} accounts (${(atRiskAccounts.length/accounts.length*100).toFixed(0)}% of total)</div></div>
+    <div class="kpi-card warning"><div class="kpi-label">🎯 CPX Overruns</div><div class="kpi-value orange">${cpxOverruns.length}</div><div class="kpi-sub">${cpxOverrunsPct}% of active accounts</div></div>
+    <div class="kpi-card"><div class="kpi-label">😊 Avg NPS</div><div class="kpi-value">${avgNps.toFixed(1)}</div><div class="kpi-sub">${npsAcc.length} scored accounts</div></div>
+    <div class="kpi-card ${avgHealth>=75?'success':avgHealth>=55?'warning':'danger'}"><div class="kpi-label">❤️ Avg Health Score</div><div class="kpi-value">${avgHealth}</div><div class="kpi-sub">Weighted (5 dim.)</div></div>`;
+
+  const dist = {Healthy:0,Watch:0,"At Risk":0,Critical:0,Ramp:0};
+  accounts.forEach(a=>dist[a.health.status]++);
+  if(donutInst) donutInst.destroy();
+  donutInst = new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{labels:Object.keys(dist),datasets:[{data:Object.values(dist),backgroundColor:['#22c55e','#eab308','#f97316','#ef4444','#64748b'],borderWidth:2,borderColor:'#111827'}]},
+    options:{plugins:{
+      legend:{position:'bottom',labels:{color:'#e4e8f0',padding:14,font:{size:12}}},
+      datalabels:{display:true,color:'#fff',font:{weight:'bold',size:14},formatter:(v)=>{const pct=(v/accounts.length*100).toFixed(0);return v>0?`${v}\n(${pct}%)`:''},textAlign:'center'},
+      tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed} accounts (${(ctx.parsed/accounts.length*100).toFixed(1)}%)`}}
+    }}
+  });
+
+  const vertAgg = {};
+  accounts.forEach(a=>{vertAgg[a.vertical]=(vertAgg[a.vertical]||0)+a.totalSpend});
+  if(vertInst) vertInst.destroy();
+  vertInst = new Chart(document.getElementById('verticalChart'),{
+    type:'bar',
+    data:{labels:Object.keys(vertAgg),datasets:[{label:'Spend',data:Object.values(vertAgg),backgroundColor:'#3b82f6',borderRadius:6}]},
+    options:{indexAxis:'y',plugins:{
+      legend:{display:false},
+      datalabels:{display:true,color:'#fff',anchor:'end',align:'end',font:{weight:'bold',size:11},formatter:v=>fmtK(v)}
+    },scales:{x:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'},suggestedMax:Math.max(...Object.values(vertAgg))*1.15},y:{ticks:{color:'#e4e8f0'},grid:{display:false}}}}
+  });
+
+  const atRisk = [...accounts].sort((a,b)=>a.health.total-b.health.total).slice(0,5);
+  document.getElementById('atRiskTable').innerHTML = renderLeaderTable(atRisk, true);
+  const top = [...accounts].sort((a,b)=>b.health.total-a.health.total).slice(0,5);
+  document.getElementById('topPerfTable').innerHTML = renderLeaderTable(top, false);
+
+  if(weeklyInst) weeklyInst.destroy();
+  weeklyInst = new Chart(document.getElementById('weeklyTrend'),{
+    type:'line',
+    data:{labels:Object.keys(weekly),datasets:[{label:'Total Spend',data:Object.values(weekly),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.15)',tension:.4,fill:true,pointRadius:6,pointBackgroundColor:'#3b82f6',pointBorderColor:'#fff',pointBorderWidth:2}]},
+    options:{plugins:{
+      legend:{labels:{color:'#e4e8f0'}},
+      datalabels:{display:true,color:'#fff',backgroundColor:'#3b82f6',borderRadius:4,padding:{top:4,bottom:4,left:6,right:6},font:{weight:'bold',size:11},align:'top',offset:8,formatter:v=>fmtK(v)}
+    },scales:{x:{ticks:{color:'#e4e8f0'},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'}}}}
+  });
+}
+
+function renderLeaderTable(list, showCpx){
+  return `<table><thead><tr><th>Advertiser</th><th>CSM</th><th>${showCpx?'CPX Δ':'Score'}</th><th>ARR</th><th>Status</th></tr></thead><tbody>
+    ${list.map(a=>`<tr><td><strong>${a.name}</strong><br><span style="color:#64748b;font-size:11px">${a.vertical}</span></td><td>${a.csm}</td><td style="color:${showCpx?(a.health.cpxVar>0?'#fca5a5':'#4ade80'):'#e4e8f0'};font-weight:600">${showCpx?(a.health.cpxVar>0?'+':'')+a.health.cpxVar.toFixed(1)+'%':a.health.total}</td><td>${fmtK(a.annual)}</td><td><span class="badge ${badgeClass(a.health.status)}">${a.health.status}</span></td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+let healthBreakInst, tierChartInst, cpxChartInst;
+function renderCSM(){
+  const csm = document.getElementById('csmFilter').value;
+  const filtered = accounts.filter(a=>a.csm===csm);
+  const totalSpend = filtered.reduce((s,a)=>s+a.totalSpend,0);
+  const totalAnnual = filtered.reduce((s,a)=>s+a.annual,0);
+  const avgHealth = Math.round(filtered.reduce((s,a)=>s+a.health.total,0)/filtered.length);
+  const atRiskList = filtered.filter(a=>['At Risk','Critical'].includes(a.health.status));
+  const atRiskValue = atRiskList.reduce((s,a)=>s+a.annual,0);
+  
+  document.getElementById('csmKpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">👥 Accounts</div><div class="kpi-value">${filtered.length}</div><div class="kpi-sub">in portfolio</div></div>
+    <div class="kpi-card success"><div class="kpi-label">💰 Portfolio Spend Q1</div><div class="kpi-value">${fmtK(totalSpend)}</div><div class="kpi-sub">actual</div></div>
+    <div class="kpi-card"><div class="kpi-label">📅 Est. Annual Investment</div><div class="kpi-value">${fmtK(totalAnnual)}</div><div class="kpi-sub">estimated</div></div>
+    <div class="kpi-card ${avgHealth>=75?'success':avgHealth>=55?'warning':'danger'}"><div class="kpi-label">❤️ Avg Health</div><div class="kpi-value">${avgHealth}</div><div class="kpi-sub">weighted score</div></div>
+    <div class="kpi-card danger"><div class="kpi-label">⚠️ At Risk</div><div class="kpi-value red">${fmtK(atRiskValue)}</div><div class="kpi-sub">${atRiskList.length} account${atRiskList.length!==1?'s':''}</div></div>`;
+
+  const statusOrder = ['Healthy','Watch','At Risk','Critical','Ramp'];
+  const statusCount = statusOrder.map(s=>filtered.filter(a=>a.health.status===s).length);
+  const statusValue = statusOrder.map(s=>filtered.filter(a=>a.health.status===s).reduce((sum,a)=>sum+a.annual,0));
+  if(healthBreakInst) healthBreakInst.destroy();
+  healthBreakInst = new Chart(document.getElementById('healthBreakdownChart'),{
+    type:'bar',
+    data:{labels:statusOrder,datasets:[{label:'# Accounts',data:statusCount,backgroundColor:statusOrder.map(s=>statusColor(s)),borderRadius:6}]},
+    options:{plugins:{
+      legend:{display:false},
+      datalabels:{display:true,color:'#fff',anchor:'end',align:'end',font:{weight:'bold',size:13},formatter:(v,ctx)=>{const val=statusValue[ctx.dataIndex];return v>0?`${v} acct\n${fmtK(val)}`:'0'},textAlign:'center'},
+      tooltip:{callbacks:{label:ctx=>{const val=statusValue[ctx.dataIndex];return `${ctx.parsed.y} accounts · ${fmtK(val)} ARR`}}}
+    },scales:{x:{ticks:{color:'#e4e8f0',font:{weight:'600'}},grid:{display:false}},y:{beginAtZero:true,ticks:{color:'#94a3b8',stepSize:1},grid:{color:'#1e293b'},suggestedMax:Math.max(...statusCount)+2}}}
+  });
+
+  const tiers = {};
+  filtered.forEach(a=>{if(!tiers[a.tier])tiers[a.tier]={count:0,budget:0};tiers[a.tier].count++;tiers[a.tier].budget+=a.annual});
+  const tierLabels = Object.keys(tiers).sort();
+  const tierBudgets = tierLabels.map(t=>tiers[t].budget);
+  const tierCounts = tierLabels.map(t=>tiers[t].count);
+  if(tierChartInst) tierChartInst.destroy();
+  tierChartInst = new Chart(document.getElementById('tierChart'),{
+    type:'doughnut',
+    data:{labels:tierLabels,datasets:[{data:tierBudgets,backgroundColor:['#3b82f6','#8b5cf6','#ec4899'],borderWidth:2,borderColor:'#111827'}]},
+    options:{plugins:{
+      legend:{position:'bottom',labels:{color:'#e4e8f0',padding:14}},
+      datalabels:{display:true,color:'#fff',font:{weight:'bold',size:12},formatter:(v,ctx)=>{const c=tierCounts[ctx.dataIndex];return `${fmtK(v)}\n(${c} acct)`},textAlign:'center'},
+      tooltip:{callbacks:{label:ctx=>{const c=tierCounts[ctx.dataIndex];return `${ctx.label}: ${fmtK(ctx.parsed)} · ${c} account${c!==1?'s':''}`}}}
+    }}
+  });
+
+  if(cpxChartInst) cpxChartInst.destroy();
+  cpxChartInst = new Chart(document.getElementById('cpxChart'),{
+    type:'bar',
+    data:{labels:filtered.map(a=>a.name.replace('Advertiser ','Adv. ')),datasets:[
+      {label:'CPX Target',data:filtered.map(a=>a.cpxT),backgroundColor:'#64748b',borderRadius:4},
+      {label:'CPX Actual',data:filtered.map(a=>a.cpxA),backgroundColor:filtered.map(a=>a.health.cpxVar>0?'#ef4444':'#22c55e'),borderRadius:4}
+    ]},
+    options:{plugins:{
+      legend:{labels:{color:'#e4e8f0'}},
+      datalabels:{display:true,color:'#fff',anchor:'end',align:'end',font:{size:10,weight:'bold'},formatter:v=>'$'+v.toFixed(0)}
+    },scales:{x:{ticks:{color:'#94a3b8',font:{size:11}},grid:{display:false}},y:{ticks:{color:'#94a3b8',callback:v=>'$'+v},grid:{color:'#1e293b'}}}}
+  });
+
+  const sorted = [...filtered].sort((a,b)=>a.health.total-b.health.total);
+  document.getElementById('csmTable').innerHTML = `
+    <table><thead><tr><th>Account</th><th>Tier</th><th>ARR</th><th>Health</th><th>CPX Δ</th><th>NPS</th><th>Status</th></tr></thead><tbody>
+    ${sorted.map(a=>`
+      <tr class="account-row" onclick="toggleDetail('${a.id}')" id="row-${a.id}">
+        <td><span class="chevron">▶</span><strong>${a.name}</strong></td>
+        <td>${a.tier}</td>
+        <td>${fmtK(a.annual)}</td>
+        <td><div class="score-bar"><div class="bar"><div class="bar-fill" style="width:${a.health.total}%;background:${healthColor(a.health.total)}"></div></div><span style="font-weight:600">${a.health.status==='Ramp'?'Ramp':a.health.total}</span></div></td>
+        <td style="color:${a.health.cpxVar>0?'#fca5a5':'#4ade80'};font-weight:600">${a.pacing<0.3?'—':(a.health.cpxVar>0?'+':'')+a.health.cpxVar.toFixed(1)+'%'}</td>
+        <td>${a.nps||'—'}</td>
+        <td><span class="badge ${badgeClass(a.health.status)}">${a.health.status}</span></td>
+      </tr>
+      <tr id="detail-${a.id}" style="display:none" class="detail-row"><td colspan="7">${renderDetailCard(a)}</td></tr>
+    `).join('')}
+    </tbody></table>`;
+}
+
+function renderDetailCard(a){
+  const h = a.health;
+  const trend = h.spendTrend === null ? 'N/A (ramp)' : (h.spendTrend>0?'+':'')+(h.spendTrend*100).toFixed(1)+'%';
+  const trendColor = h.spendTrend === null ? 'value' : h.spendTrend>=0 ? 'value green' : 'value red';
+  
+  let note = '';
+  let opp = '';
+  if(h.status==='Healthy' && a.nps>=8){ note = `NPS ${a.nps}. Strong performance and relationship. Consider case study or expansion.`; opp = '<span class="badge-opp">💎 Expansion opportunity</span>'; }
+  else if(h.status==='Critical'){ note = `CPX ${h.cpxVar>0?'+':''}${h.cpxVar.toFixed(1)}%. ${h.isVtaOnly?'VTA-only penalised –25pts. ':''}Escalate now.`; }
+  else if(h.status==='At Risk'){ note = `CPX ${h.cpxVar>0?'+':''}${h.cpxVar.toFixed(1)}%. ${h.spendTrend<-0.1?'Declining spend. ':''}Recovery plan needed.`; }
+  else if(h.status==='Watch'){ 
+    const issues = [];
+    if(h.cpxVar > 5) issues.push(`CPX +${h.cpxVar.toFixed(1)}%`);
+    if(a.nps!==null && a.nps<=6) issues.push(`NPS ${a.nps}`);
+    if(h.spendTrend !== null && h.spendTrend <= -0.10) issues.push(`spend ${(h.spendTrend*100).toFixed(1)}%`);
+    if(h.isVtaOnly) issues.push(`VTA-only attribution`);
+    note = `Monitoring. Triggers: ${issues.join(', ') || 'minor deviations'}.`;
+  }
+  else if(h.status==='Ramp'){ note = `New account in ramp-up phase. Pacing ${fmtPct(a.pacing)}. Ramp model applied.`; }
+  else { note = `Stable portfolio contributor.`; }
+
+  const guardrailText = h.guardrails.length ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(239,68,68,.08);border-radius:6px;font-size:12px;color:#fca5a5"><b>⚠️ Guardrails triggered:</b> ${h.guardrails.join(' · ')}</div>` : '';
+
+  return `<div class="detail-card">
+    <h4>${a.name} · Detail</h4>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="label">Spend trend (Jan→Mar)</div><div class="${trendColor}">${trend}</div></div>
+      <div class="detail-item"><div class="label">Pacing</div><div class="value">${fmtPct(a.pacing)}</div></div>
+      <div class="detail-item"><div class="label">Adoption score</div><div class="value">${h.adoptionScore}/100</div></div>
+      <div class="detail-item"><div class="label">Solutions</div><div class="value">${a.campaigns.replace(/\+/g,', ')}</div></div>
+      <div class="detail-item"><div class="label">Vertical</div><div class="value">${a.vertical}</div></div>
+      <div class="detail-item"><div class="label">Attribution</div><div class="value">${a.attribution}${h.isVtaOnly?' ⚠️':''}</div></div>
+      <div class="detail-item"><div class="label">CPX Target / Actual</div><div class="value">${fmt(a.cpxT)} / <span style="color:${h.cpxVar>0?'#fca5a5':'#4ade80'}">${fmt(a.cpxA)}</span></div></div>
+      <div class="detail-item"><div class="label">Total Q1 Spend</div><div class="value">${fmtK(a.totalSpend)}</div></div>
+    </div>
+    <div class="detail-note">${note}</div>
+    ${opp}
+    ${guardrailText}
+  </div>`;
+}
+
+function toggleDetail(id){
+  const row = document.getElementById('row-'+id);
+  const detail = document.getElementById('detail-'+id);
+  const isOpen = detail.style.display !== 'none';
+  detail.style.display = isOpen ? 'none' : 'table-row';
+  row.classList.toggle('open', !isOpen);
+}
+
+function initAccountFilter(){
+  const sel = document.getElementById('accountFilter');
+  accounts.forEach(a => sel.innerHTML += `<option value="${a.id}">${a.name} (${a.vertical})</option>`);
+}
+
+let radarInst, monthInst;
+function renderAccount(){
+  const id = document.getElementById('accountFilter').value;
+  const a = accounts.find(x=>x.id===id);
+  const h = a.health;
+  
+  const alerts = [];
+  if(h.cpxScore < 50) alerts.push(`⚠️ CPX ${h.cpxVar.toFixed(0)}% above target — escalation recommended`);
+  if(a.nps !== null && a.nps <= 5) alerts.push(`⚠️ Low NPS (${a.nps}) — proactive outreach needed`);
+  if(a.nps === 6) alerts.push(`⚠️ NPS ${a.nps} — structured recovery program triggered`);
+  if(h.spendTrend !== null && h.spendTrend <= -0.10) alerts.push(`📉 Spend contracted ${(h.spendTrend*100).toFixed(1)}% (Jan→Mar) — early churn signal`);
+  if(h.pacingScore < 80 && a.pacing > 0.3) alerts.push(`⚠️ Pacing off-target (${fmtPct(a.pacing)})`);
+  if(h.isVtaOnly) alerts.push(`📊 VTA-only attribution — signal quality limited (–25pts adoption)`);
+  if(h.guardrails.length > 0) alerts.push(`🛑 Guardrails active: ${h.guardrails.join(', ')} — score capped`);
+  
+  const insights = [];
+  if(h.cpxScore >= 80) insights.push(`✅ CPX performing at or below target`);
+  if(a.nps >= 8) insights.push(`✅ Strong NPS (${a.nps}) — potential case study`);
+  if(h.spendTrend !== null && h.spendTrend >= 0.05) insights.push(`✅ Spend growing (+${(h.spendTrend*100).toFixed(1)}%) — upsell opportunity`);
+  if(h.adoptionScore >= 70) insights.push(`✅ Multi-product adoption active`);
+
+  document.getElementById('accountContent').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Vertical / Tier</div><div class="kpi-value" style="font-size:18px">${a.vertical}</div><div class="kpi-sub">${a.tier} · ${a.csm}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Est. Annual Investment</div><div class="kpi-value" style="font-size:22px">${fmtK(a.annual)}</div><div class="kpi-sub">${fmtPct(a.totalSpend/a.annual)} spent</div></div>
+      <div class="kpi-card"><div class="kpi-label">Q1 Total Spend</div><div class="kpi-value" style="font-size:22px">${fmtK(a.totalSpend)}</div><div class="kpi-sub">Pacing ${fmtPct(a.pacing)}</div></div>
+      <div class="kpi-card ${h.total>=75?'success':h.total>=55?'warning':'danger'}"><div class="kpi-label">Health Score</div><div class="kpi-value">${h.total} <span class="badge ${badgeClass(h.status)}" style="font-size:10px;vertical-align:middle;margin-left:4px">${h.status}</span></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><h3>🎯 Health Breakdown (5 Dimensions)</h3><div class="chart-container tall"><canvas id="radarChart"></canvas></div></div>
+      <div class="card"><h3>📅 Monthly Spend Trend</h3><div class="chart-container tall"><canvas id="monthChart"></canvas></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><h3>🚨 Alerts</h3>${alerts.length?alerts.map(x=>`<div class="alert">${x}</div>`).join(''):'<div class="insight">✅ No active alerts</div>'}</div>
+      <div class="card"><h3>💡 Positive Signals</h3>${insights.length?insights.map(x=>`<div class="insight">${x}</div>`).join(''):'<div class="alert">No positive signals identified</div>'}</div>
+    </div>
+    <div class="card" style="margin-top:20px">
+      <h3>📋 Account Configuration & Scores</h3>
+      <div class="detail-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="detail-item"><div class="label">Campaign Types</div><div class="value">${a.campaigns}</div></div>
+        <div class="detail-item"><div class="label">Creative Types</div><div class="value">${a.creatives}</div></div>
+        <div class="detail-item"><div class="label">Attribution</div><div class="value">${a.attribution}${h.isVtaOnly?' ⚠️':''}</div></div>
+        <div class="detail-item"><div class="label">CPX Target / Actual</div><div class="value">${fmt(a.cpxT)} / <span style="color:${h.cpxVar>0?'#fca5a5':'#4ade80'}">${fmt(a.cpxA)}</span></div></div>
+        <div class="detail-item"><div class="label">CPX Score (35%)</div><div class="value" style="color:${healthColor(h.cpxScore)}">${h.cpxScore}/100</div></div>
+        <div class="detail-item"><div class="label">Pacing Score (25%)</div><div class="value" style="color:${healthColor(h.pacingScore)}">${h.pacingScore}/100</div></div>
+        <div class="detail-item"><div class="label">NPS Score (20%)</div><div class="value" style="color:${healthColor(h.npsScore)}">${h.npsScore}/100 ${a.nps!==null?`(NPS ${a.nps})`:'(N/A)'}</div></div>
+        <div class="detail-item"><div class="label">Solution Adoption (12%)</div><div class="value" style="color:${healthColor(h.adoptionScore)}">${h.adoptionScore}/100</div></div>
+        <div class="detail-item"><div class="label">Spend Trajectory (8%)</div><div class="value" style="color:${healthColor(h.spendScore)}">${h.spendScore}/100 ${h.spendTrend!==null?`(${h.spendTrend>0?'+':''}${(h.spendTrend*100).toFixed(1)}%)`:'(ramp)'}</div></div>
+      </div>
+      ${h.guardrails.length ? `<div style="margin-top:14px;padding:12px 16px;background:rgba(239,68,68,.08);border-left:3px solid #ef4444;border-radius:6px;font-size:13px"><b style="color:#fca5a5">🛑 Guardrails triggered:</b> <span style="color:#94a3b8">${h.guardrails.join(' · ')}</span><div style="margin-top:6px;color:#64748b;font-size:12px">Score automatically capped to reflect critical signals regardless of other strong metrics.</div></div>` : ''}
+    </div>`;
+
+  if(radarInst) radarInst.destroy();
+  radarInst = new Chart(document.getElementById('radarChart'),{
+    type:'radar',
+    data:{labels:['CPX (35%)','Pacing (25%)','NPS (20%)','Adoption (12%)','Spend (8%)'],
+      datasets:[{label:a.name,data:[h.cpxScore,h.pacingScore,h.npsScore,h.adoptionScore,h.spendScore],
+        backgroundColor:'rgba(59,130,246,.25)',borderColor:'#3b82f6',pointBackgroundColor:'#3b82f6',pointBorderColor:'#fff',pointBorderWidth:2,pointRadius:6,borderWidth:2}]},
+    options:{plugins:{
+      legend:{labels:{color:'#e4e8f0'}},
+      datalabels:{display:true,color:'#fff',backgroundColor:'#3b82f6',borderRadius:4,padding:{top:3,bottom:3,left:6,right:6},font:{weight:'bold',size:11},formatter:v=>v}
+    },scales:{r:{beginAtZero:true,max:100,ticks:{color:'#64748b',backdropColor:'transparent',stepSize:25},grid:{color:'#1e293b'},angleLines:{color:'#1e293b'},pointLabels:{color:'#e4e8f0',font:{size:12,weight:'600'}}}}}
+  });
+
+  if(monthInst) monthInst.destroy();
+  monthInst = new Chart(document.getElementById('monthChart'),{
+    type:'bar',
+    data:{labels:['Jan','Feb','Mar'],datasets:[{label:'Spend',data:[a.jan,a.feb,a.mar],backgroundColor:['#64748b','#3b82f6','#22c55e'],borderRadius:8}]},
+    options:{plugins:{
+      legend:{display:false},
+      datalabels:{display:true,color:'#fff',anchor:'end',align:'end',font:{weight:'bold',size:13},formatter:v=>v===0?'—':fmtK(v)}
+    },scales:{x:{ticks:{color:'#e4e8f0',font:{weight:'600',size:13}},grid:{display:false}},y:{ticks:{color:'#94a3b8',callback:v=>fmtK(v)},grid:{color:'#1e293b'},suggestedMax:Math.max(a.jan,a.feb,a.mar)*1.2}}}
+  });
+}
+
+initAccountFilter();
+renderLeadership();
+</script>
+</body>
+</html>
